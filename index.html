@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Valentine Anime Memory</title>
+<style>
+    body { margin: 0; overflow: hidden; background: #000; font-family: "Segoe UI", sans-serif; color: white; }
+
+    /* Hiệu ứng chuyển ảnh Dissolve mượt mà */
+    .bg-layer {
+        position: fixed; width: 100%; height: 100%; 
+        background-size: contain; background-position: center; background-repeat: no-repeat;
+        transition: opacity 2.5s ease-in-out; opacity: 0; z-index: -1;
+    }
+    #bgBlur { 
+        position: fixed; width: 110%; height: 110%; top: -5%; left: -5%;
+        background-size: cover; filter: blur(25px) brightness(0.3); z-index: -2;
+        transition: opacity 2.5s ease-in-out;
+    }
+    .active { opacity: 1 !important; }
+
+    /* Lớp phủ tối phía dưới để tách biệt chữ lời nhắn */
+    .bottom-gradient {
+        position: fixed; bottom: 0; width: 100%; height: 45%;
+        background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+        z-index: 10; pointer-events: none;
+    }
+
+    /* Khung chữ kể chuyện */
+    #card {
+        position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%);
+        width: 85%; max-width: 400px; text-align: center; display: none; z-index: 100;
+    }
+    .text {
+        background: rgba(255, 105, 180, 0.2); 
+        padding: 22px; border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(15px);
+        font-family: "Segoe Script", cursive;
+        font-size: 20px; line-height: 1.6;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+    }
+
+    /* KHU VỰC LỜI KẾT - ĐÃ TỐI ƯU CHỐNG TRÀN */
+    .final-container {
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 85%; /* Ép khung nhỏ lại để không tràn mép */
+        text-align: center; z-index: 150;
+    }
+
+    #extraMessage {
+        font-family: "Segoe Script", cursive;
+        font-size: clamp(18px, 5vw, 28px);
+        color: #ffffff;
+        background: rgba(255, 77, 166, 0.4); /* Nền hồng rõ hơn để nổi bật */
+        padding: 12px 24px;
+        border-radius: 50px;
+        display: none;
+        box-shadow: 0 0 20px rgba(255, 77, 166, 0.3);
+        animation: fadeInOut 4s forwards;
+    }
+
+    #finalMessage {
+        font-family: "Segoe Script", cursive;
+        font-size: clamp(28px, 8vw, 50px); /* Tự co giãn size theo màn hình */
+        color: #ffb3d9;
+        display: none;
+        line-height: 1.3; /* Khoảng cách giữa 2 dòng */
+        text-shadow: 0 0 20px #ff4da6, 0 0 40px #ff1a8c, 0 0 10px #000;
+        animation: popIn 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, 
+                   glowPulse 2s infinite alternate;
+    }
+
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateY(20px); }
+        20% { opacity: 1; transform: translateY(0); }
+        80% { opacity: 1; }
+        100% { opacity: 0; transform: translateY(-20px); }
+    }
+
+    @keyframes popIn {
+        0% { transform: scale(0); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes glowPulse {
+        from { text-shadow: 0 0 20px #ff4da6, 0 0 10px #fff; }
+        to { text-shadow: 0 0 40px #ff4da6, 0 0 60px #ff1a8c, 0 0 15px #fff; }
+    }
+
+    .btn-next { background: none; border: none; color: #ffb3d9; font-size: 55px; cursor: pointer; animation: bounce 2s infinite; margin-top: 15px; }
+    @keyframes bounce { 0%, 100% {transform: translateY(0);} 50% {transform: translateY(15px);} }
+
+    /* Cánh hoa rơi */
+    .petal { position: absolute; background: #ffcce6; border-radius: 150% 0 150% 0; opacity: 0.8; pointer-events: none; animation: petal-fall linear forwards; }
+    @keyframes petal-fall { 0% { transform: translateY(-10vh) rotate(0deg); } 100% { transform: translateY(110vh) rotate(720deg); } }
+
+    #heart { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 100px; color: #ff4da6; cursor: pointer; z-index: 200; text-shadow: 0 0 30px #ff4da6; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.2); } }
+</style>
+</head>
+<body>
+
+<audio id="bgmusic" loop><source src="nhac.mp3" type="audio/mpeg"></audio>
+
+<div id="bgBlur" class="bg-layer active"></div>
+<div id="img1" class="bg-layer active"></div>
+<div id="img2" class="bg-layer"></div>
+<div class="bottom-gradient"></div>
+
+<div id="heart">❤</div>
+
+<div id="card">
+    <div id="message" class="text"></div>
+    <button class="btn-next" onclick="nextPage()">➔</button>
+</div>
+
+<div class="final-container">
+    <div id="extraMessage">Cảm ơn em đã ở lại bên anh...</div>
+    <div id="finalMessage">Anh yêu em<br>rất nhiều! ❤</div>
+</div>
+
+<script>
+const storyPages = [
+ {img:"anh1.jpg", text:"Anh có vài điều muốn nói với em…"},
+ {img:"anh2.jpg", text:"Năm vừa rồi hai đứa mình đã trải qua nhiều chuyện…"},
+ {img:"anh3.jpg", text:"Có lúc buồn, có lúc tưởng như đã mất nhau…"},
+ {img:"anh4.jpg", text:"Nhưng anh vẫn thấy may mắn vì mình còn ở đây…"},
+ {img:"anh5.jpg", text:"Anh mong từ giờ mình sẽ hiểu nhau nhiều hơn…"},
+ {img:"anh6.jpg", text:"Chậm thôi cũng được, miễn là cùng nhau…"},
+ {img:"anh7.jpg", text:"Chỉ cần vẫn còn nắm tay nhau…"},
+ {img:"anh8.jpg", text:"Và anh muốn nói điều này…"}
+];
+
+// Thứ tự ảnh chạy vòng lặp lãng mạn
+const endSequence = ["anh1.jpg", "anh9.jpg", "anh2.jpg", "anh10.jpg", "anh3.jpg", "anh11.jpg", "anh4.jpg", "anh12.jpg", "anh5.jpg", "anh13.jpg", "anh6.jpg", "anh14.jpg", "anh7.jpg", "anh15.jpg", "anh8.jpg", "anh16.jpg"];
+
+let currentIdx = 0;
+let isTyping = false;
+let currentLayer = 1;
+
+document.getElementById("heart").onclick = function() {
+    this.style.display = "none";
+    document.getElementById("bgmusic").play().catch(() => {});
+    document.getElementById("card").style.display = "block";
+    changeImage(storyPages[0].img);
+    typeText(storyPages[0].text);
+    startPetals();
+};
+
+function changeImage(src) {
+    const layer1 = document.getElementById("img1");
+    const layer2 = document.getElementById("img2");
+    const blur = document.getElementById("bgBlur");
+    if (currentLayer === 1) {
+        layer2.style.backgroundImage = `url(${src})`;
+        layer1.style.opacity = 0; layer2.style.opacity = 1;
+        currentLayer = 2;
+    } else {
+        layer1.style.backgroundImage = `url(${src})`;
+        layer2.style.opacity = 0; layer1.style.opacity = 1;
+        currentLayer = 1;
+    }
+    blur.style.backgroundImage = `url(${src})`;
+}
+
+function typeText(text) {
+    isTyping = true;
+    const el = document.getElementById("message");
+    el.innerHTML = ""; let i = 0;
+    const timer = setInterval(() => {
+        if (i < text.length) el.innerHTML += text.charAt(i++);
+        else { clearInterval(timer); isTyping = false; }
+    }, 65);
+}
+
+function nextPage() {
+    if (isTyping) return;
+    currentIdx++;
+    if (currentIdx < storyPages.length) {
+        changeImage(storyPages[currentIdx].img);
+        typeText(storyPages[currentIdx].text);
+    } else {
+        startEnding();
+    }
+}
+
+function startEnding() {
+    document.getElementById("card").style.display = "none";
+    const extra = document.getElementById("extraMessage");
+    extra.style.display = "inline-block";
+    
+    setTimeout(() => {
+        extra.style.display = "none";
+        document.getElementById("finalMessage").style.display = "block";
+    }, 4000);
+    
+    let endIdx = 0;
+    setInterval(() => {
+        changeImage(endSequence[endIdx]);
+        endIdx = (endIdx + 1) % endSequence.length;
+    }, 4500);
+}
+
+function startPetals() {
+    setInterval(() => {
+        const p = document.createElement("div");
+        p.className = "petal";
+        p.style.left = Math.random() * 100 + "vw";
+        const size = Math.random() * 10 + 7 + "px";
+        p.style.width = size; p.style.height = size;
+        p.style.animationDuration = Math.random() * 5 + 5 + "s";
+        p.style.backgroundColor = ["#ffb3d9", "#ffccf2", "#ffe6f0"][Math.floor(Math.random()*3)];
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 10000);
+    }, 400);
+}
+</script>
+</body>
+</html>
